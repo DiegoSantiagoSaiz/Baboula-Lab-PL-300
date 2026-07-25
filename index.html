@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1b26">
+    <title>PL-300 Power Practice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        html {
+            font-size: 15px;
+        }
+
+        :root {
+            /* Light Mode - High Contrast and Defined */
+            --background: 210 40% 98%; 
+            --foreground: 222 47% 10%; /* Darker foreground */
+            --card: 0 0% 100%;
+            --border: 214 32% 80%; /* Much darker border for better definition */
+            --input: 210 40% 94%;
+            --primary: 262 75% 40%; /* Deeper primary for accessibility */
+            --primary-foreground: 0 0% 100%;
+            --secondary: 210 40% 92%;
+            --danger: 0 75% 45%;
+            --success: 142 80% 30%;
+            --chat-bubble-bg: 215 28% 90%;
+            --prose-body: 215 25% 15%;
+            --prose-headings: 222 47% 5%;
+            --prose-strong: 222 47% 0%;
+            --prose-links: 262 75% 40%;
+            --prose-code: 333 94% 25%;
+        }
+
+        .dim {
+            /* Dim Mode - Deep Midnight */
+            --background: 222 47% 8%; 
+            --foreground: 210 40% 92%; 
+            --card: 222 47% 14%; 
+            --border: 217 30% 22%; 
+            --input: 222 47% 10%;
+            --primary: 262 80% 70%; 
+            --primary-foreground: 0 0% 100%;
+            --secondary: 222 30% 18%;
+            --danger: 0 80% 65%;
+            --success: 142 70% 55%;
+            --chat-bubble-bg: 222 35% 16%;
+            --prose-body: 210 30% 88%;
+            --prose-headings: 0 0% 100%;
+            --prose-strong: 0 0% 100%;
+            --prose-links: 212 95% 78%;
+            --prose-code: 333 95% 80%;
+        }
+
+        .dark {
+            /* Tokyo Night Mode - High Contrast Cyberpunk */
+            --background: 235 24% 13%; /* #1a1b26 */
+            --foreground: 230 15% 85%; /* #c0caf5 */
+            --card: 230 22% 19%;       /* #24283b */
+            --border: 230 20% 30%;     /* #414868 */
+            --input: 235 24% 11%;
+            --primary: 260 85% 75%;    /* #bb9af7 - Vibrant Violet */
+            --primary-foreground: 235 24% 13%;
+            --secondary: 230 20% 25%;
+            --danger: 350 85% 72%;     /* #f7768e - Tokyo Coral Red */
+            --success: 90 55% 65%;      /* #9ece6a - Tokyo Lime Green */
+            --chat-bubble-bg: 230 25% 22%;
+            --prose-body: 230 15% 80%;
+            --prose-headings: 190 90% 75%; /* #7dcfff - Tokyo Cyan */
+            --prose-strong: 0 0% 100%;
+            --prose-links: 200 95% 75%;
+            --prose-code: 333 95% 80%;
+        }
+
+        .forest {
+            /* Forest Sage Mode - Deep Forest Green & Warm Sage, Highly Readable and Soothing for Studying */
+            --background: 140 25% 9%; 
+            --foreground: 120 20% 92%; 
+            --card: 140 22% 14%; 
+            --border: 140 18% 24%; 
+            --input: 140 25% 7%;
+            --primary: 142 70% 48%; /* Vibrant Emerald */
+            --primary-foreground: 140 25% 9%;
+            --secondary: 140 18% 18%;
+            --danger: 0 85% 68%;
+            --success: 142 72% 52%;
+            --chat-bubble-bg: 140 20% 16%;
+            --prose-body: 120 20% 88%;
+            --prose-headings: 142 75% 78%;
+            --prose-strong: 0 0% 100%;
+            --prose-links: 142 80% 72%;
+            --prose-code: 142 70% 75%;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .prose {
+            color: hsl(var(--prose-body));
+        }
+        .prose h1, .prose h2, .prose h3 {
+            color: hsl(var(--prose-headings));
+        }
+        .prose strong {
+            color: hsl(var(--prose-strong));
+        }
+        .prose a {
+            color: hsl(var(--prose-links));
+        }
+        .prose code {
+            color: hsl(var(--prose-code));
+        }
+
+        /* Subtle Glow for Tokyo Mode */
+        .dark .btn-primary-glow {
+            box-shadow: 0 0 15px hsla(var(--primary), 0.3);
+        }
+        
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.5s ease-in-out;
+        }
+        @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes pop-in {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop-in {
+            animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+         @keyframes glow {
+            0%, 100% { box-shadow: 0 0 4px rgba(99, 102, 241, 0.2); }
+            50% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.5); }
+        }
+    </style>
+    <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            background: 'hsl(var(--background))',
+            foreground: 'hsl(var(--foreground))',
+            card: 'hsl(var(--card))',
+            border: 'hsl(var(--border))',
+            input: 'hsl(var(--input))',
+            primary: {
+              DEFAULT: 'hsl(var(--primary))',
+              foreground: 'hsl(var(--primary-foreground))',
+            },
+            secondary: 'hsl(var(--secondary))',
+            danger: 'hsl(var(--danger))',
+            success: 'hsl(var(--success))',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          animation: {
+            'glow': 'glow 2.5s ease-in-out infinite',
+            'shimmer': 'shimmer 2s linear infinite',
+          },
+          keyframes: {
+            shimmer: {
+              '0%': { backgroundPosition: '-200% 0' },
+              '100%': { backgroundPosition: '200% 0' },
+            }
+          }
+        },
+      },
+    }
+    </script>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

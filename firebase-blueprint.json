@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "UserProgress": {
+      "title": "User Progress",
+      "description": "General statistics and current standing of the user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "User's unique ID." },
+        "email": { "type": "string", "format": "email" },
+        "totalQuestions": { "type": "number", "description": "Total questions attempted." },
+        "totalCorrect": { "type": "number", "description": "Total correct answers." },
+        "currentStreak": { "type": "number", "description": "Current consecutive correct answers." },
+        "categoryStats": {
+          "type": "object",
+          "description": "Aggregated stats per exam category."
+        },
+        "accuracyHistory": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "Historical accuracy across sessions."
+        },
+        "region": { "type": "string", "description": "User's selected region for holidays (e.g., 'asturias', 'madrid')." },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "totalQuestions", "totalCorrect", "currentStreak", "categoryStats"]
+    },
+    "ExamSession": {
+      "title": "Exam Session",
+      "description": "A set of results from a singular practice or exam session.",
+      "type": "object",
+      "properties": {
+        "sessionId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "mode": { "type": "string" },
+        "difficulty": { "type": "string" },
+        "category": { "type": "string" },
+        "results": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "Array of ExamResult objects."
+        },
+        "score": { "type": "number" },
+        "total": { "type": "number" },
+        "timeTaken": { "type": "number" }
+      },
+      "required": ["sessionId", "timestamp", "results", "score", "total"]
+    },
+    "Bookmark": {
+      "title": "Bookmark",
+      "description": "A bookmarked question.",
+      "type": "object",
+      "properties": {
+        "questionId": { "type": "string" },
+        "question": { "type": "object", "description": "The full Question object." },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["questionId", "question", "timestamp"]
+    },
+    "ActiveSession": {
+      "title": "Active Session",
+      "description": "An active or paused exam/practice session that can be resumed.",
+      "type": "object",
+      "properties": {
+        "sessionId": { "type": "string" },
+        "difficulty": { "type": "string" },
+        "timer": { "type": "number" },
+        "mode": { "type": "string" },
+        "category": { "type": "string" },
+        "timeLeft": { "type": "number" },
+        "currentQuestionIndex": { "type": "number" },
+        "questions": { "type": "array", "items": { "type": "object" } },
+        "answersState": { "type": "object" },
+        "matchingState": { "type": "object" },
+        "resultsMap": { "type": "object" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sessionId", "difficulty", "timer", "mode", "category", "timeLeft", "currentQuestionIndex", "questions", "answersState", "matchingState", "resultsMap", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "UserProgress",
+      "description": "Main profile and statistics for each user."
+    },
+    "/users/{uid}/exams/{examId}": {
+      "schema": "ExamSession",
+      "description": "Detailed history of exams taken by the user."
+    },
+    "/users/{uid}/bookmarks/{bookmarkId}": {
+      "schema": "Bookmark",
+      "description": "Questions the user has saved for review."
+    },
+    "/users/{uid}/activeSession/{sessionId}": {
+      "schema": "ActiveSession",
+      "description": "Active or paused quiz/exam session for the user."
+    }
+  }
+}

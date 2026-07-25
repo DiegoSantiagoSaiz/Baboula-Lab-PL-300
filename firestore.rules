@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Safety Net
+    match /{document=**} { allow read, write: if false; }
+
+    // Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    // Note: Since we use Google Login via set_up_firebase, email_verified is typically true.
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+
+    // Validation Blueprints
+    function isValidUserProgress(data) {
+      return data.uid == request.auth.uid
+             && data.email is string && data.email.size() <= 128
+             && data.totalQuestions is number
+             && data.totalCorrect is number
+             && data.currentStreak is number
+             && data.categoryStats is map
+             && (data.get('region', 'asturias') is string && data.get('region', 'asturias').size() <= 64)
+             && (data.keys().hasAll(['uid', 'email', 'totalQuestions', 'totalCorrect', 'currentStreak', 'categoryStats']))
+             && (!data.keys().hasAny(['isAdmin'])) // Prevent self-elevation
+             ;
+    }
+
+    function isValidExamSession(data) {
+      return data.sessionId is string && data.sessionId.size() <= 128
+             && data.results is list
+             && data.score is number
+             && data.total is number
+             && data.timestamp is string;
+    }
+
+    function isValidBookmark(data) {
+      return data.questionId is string && data.questionId.size() <= 128
+             && data.question is map
+             && data.timestamp is string;
+    }
+
+    // Routes
+    match /users/{uid} {
+      allow get, list: if isOwner(uid);
+      allow create: if isOwner(uid) && isVerified() && isValidUserProgress(incoming());
+      allow update: if isOwner(uid) && isVerified() && isValidUserProgress(incoming())
+                       && incoming().uid == existing().uid
+                       && incoming().email == existing().email
+                       && (
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'totalQuestions', 'totalCorrect', 'currentStreak', 
+                           'categoryStats', 'accuracyHistory', 'lastUpdated', 'region'
+                         ])
+                       );
+    }
+
+    match /users/{uid}/exams/{examId} {
+      allow list, get: if isOwner(uid);
+      allow create: if isOwner(uid) && isVerified() && isValidId(examId) && isValidExamSession(incoming());
+      allow update: if false; // Immutable records
+      allow delete: if isOwner(uid);
+    }
+
+    match /users/{uid}/bookmarks/{bookmarkId} {
+      allow list, get: if isOwner(uid);
+      allow create: if isOwner(uid) && isVerified() && isValidId(bookmarkId) && isValidBookmark(incoming());
+      allow delete: if isOwner(uid);
+      allow update: if false; // Bookmarks don't change, just added or removed
+    }
+
+    match /users/{uid}/activeSession/{sessionId} {
+      allow list, get: if isOwner(uid);
+      allow create, update, delete: if isOwner(uid) && isValidId(sessionId);
+    }
+  }
+}

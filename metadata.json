@@ -1,0 +1,8 @@
+{
+  "name": "Baboulas Data Lab",
+  "description": "Baboulas Data Lab practice exams for PL-300 using The Baboula Method.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
