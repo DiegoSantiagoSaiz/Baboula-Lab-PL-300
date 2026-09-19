@@ -364,6 +364,25 @@ export const Quiz: React.FC<QuizProps> = ({
     }
   };
 
+  const [bookmarkToast, setBookmarkToast] = useState<string | null>(null);
+
+  const handleBookmarkToggle = (q: Question) => {
+    onToggleBookmark(q);
+    const willBeBookmarked = !isBookmarked(q);
+    setBookmarkToast(willBeBookmarked ? (language === 'es' ? 'Pregunta guardada en marcadores' : 'Question bookmarked') : (language === 'es' ? 'Marcador eliminado' : 'Bookmark removed'));
+    setTimeout(() => {
+      setBookmarkToast(null);
+    }, 2000);
+  };
+
+  const hasSelectedAnswer = currentQuestion?.type === 'Matching'
+    ? Object.keys(currentMatching).length > 0
+    : currentQuestion?.type === 'BuildList'
+      ? (Array.isArray(currentAnswer) && currentAnswer.length > 0)
+      : currentQuestion?.type === 'MultiSelect' || (Array.isArray(currentQuestion?.answer) && currentQuestion?.answer.length > 1)
+        ? (Array.isArray(currentAnswer) && currentAnswer.length > 0)
+        : (typeof currentAnswer === 'string' && currentAnswer.trim().length > 0);
+
   const handleSubmit = () => {
     if (!currentQuestion || isAnswered) return;
     
@@ -381,7 +400,7 @@ export const Quiz: React.FC<QuizProps> = ({
     if (!isMultiAnswer) {
       const normalizedCorrect = Array.isArray(cleanAnswer) ? cleanAnswer[0] : cleanAnswer;
       const normalizedUser = Array.isArray(finalAnswer) ? finalAnswer[0] : finalAnswer;
-      isCorrect = normalizedUser === normalizedCorrect;
+      isCorrect = String(normalizedUser).trim().toLowerCase() === String(normalizedCorrect).trim().toLowerCase();
     } else {
       const userArr = Array.isArray(finalAnswer) ? finalAnswer : [finalAnswer];
       const correctArr = Array.isArray(cleanAnswer) ? (cleanAnswer as string[]) : [cleanAnswer as string];
@@ -390,7 +409,9 @@ export const Quiz: React.FC<QuizProps> = ({
       } else if (currentQuestion.type === 'Matching') {
         isCorrect = userArr.length === correctArr.length && [...userArr].sort().join(',') === [...correctArr].sort().join(',');
       } else {
-        isCorrect = userArr.length === correctArr.length && userArr.every(v => correctArr.includes(v));
+        const normUser = userArr.map(u => String(u).trim().toLowerCase());
+        const normCorrect = correctArr.map(c => String(c).trim().toLowerCase());
+        isCorrect = normUser.length === normCorrect.length && normUser.every(v => normCorrect.includes(v));
       }
     }
     
@@ -426,9 +447,6 @@ export const Quiz: React.FC<QuizProps> = ({
       if (e.key === 'Enter') {
         e.preventDefault();
         if (!isAnswered) {
-          const hasSelectedAnswer = currentQuestion.type === 'Matching'
-            ? Object.keys(currentMatching).length > 0
-            : !!currentAnswer;
           if (hasSelectedAnswer) {
             handleSubmit();
           }
@@ -447,7 +465,7 @@ export const Quiz: React.FC<QuizProps> = ({
         }
       } else if (key === 'b') {
         e.preventDefault();
-        onToggleBookmark(currentQuestion);
+        handleBookmarkToggle(currentQuestion);
       }
     };
 
@@ -459,17 +477,20 @@ export const Quiz: React.FC<QuizProps> = ({
     currentQuestion,
     currentQuestionIndex,
     resultsMap,
-    currentMatching,
-    currentAnswer,
+    hasSelectedAnswer,
     mode,
     handleSubmit,
     handleNext,
-    onToggleBookmark,
+    handleBookmarkToggle,
   ]);
 
   const renderOptions = () => {
     if (!currentQuestion) return null;
     const { type, options, answer } = currentQuestion;
+    const safeOptions = Array.isArray(options) && options.length > 0 
+      ? options 
+      : (Array.isArray(answer) && answer.length > 0 ? answer : ["Option A", "Option B", "Option C", "Option D"]);
+
     const result = resultsMap[currentQuestionIndex];
     const isAnswered = !!result;
 
@@ -480,13 +501,15 @@ export const Quiz: React.FC<QuizProps> = ({
           <div className="grid grid-cols-1 gap-3">
             <div className="flex items-center justify-between px-1 mb-1">
                 <span className="text-[10px] font-black uppercase text-primary animate-pulse tracking-widest">
-                    Select {Array.isArray(answer) ? answer.length : 1} answers
+                    {language === 'es' 
+                      ? `Selecciona ${Array.isArray(answer) ? answer.length : 1} respuestas` 
+                      : `Select ${Array.isArray(answer) ? answer.length : 1} answers`}
                 </span>
                 <span className="text-[10px] font-black uppercase text-slate-500">
-                    {Array.isArray(currentAnswer) ? currentAnswer.length : 0} of {Array.isArray(answer) ? answer.length : 1} selected
+                    {Array.isArray(currentAnswer) ? currentAnswer.length : 0} {language === 'es' ? 'de' : 'of'} {Array.isArray(answer) ? answer.length : 1} {language === 'es' ? 'seleccionadas' : 'selected'}
                 </span>
             </div>
-            {options.map((opt, i) => {
+            {safeOptions.map((opt, i) => {
               const isSelected = Array.isArray(currentAnswer) && currentAnswer.includes(opt);
               const isCorrect = Array.isArray(answer) ? answer.includes(opt) : answer === opt;
               let styleClass = 'border-border bg-card hover:border-slate-500';
@@ -514,42 +537,55 @@ export const Quiz: React.FC<QuizProps> = ({
     switch (type) {
       case 'BuildList':
         const buildListSelected = Array.isArray(currentAnswer) ? currentAnswer : [];
-        const buildListAvailable = options.filter(o => !buildListSelected.includes(o));
+        const buildListAvailable = safeOptions.filter(o => !buildListSelected.includes(o));
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <h4 className="text-[10px] font-black uppercase text-slate-500 pl-1">Available</h4>
-              <div className="bg-slate-900/40 p-3 rounded-xl border border-border min-h-[160px] space-y-2">
-                {buildListAvailable.map((opt, i) => (
-                  <button key={i} onClick={() => handleBuildListAdd(opt)} disabled={isAnswered} className="w-full text-left p-3 bg-white dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-xs font-bold hover:border-primary transition-all break-words text-slate-800 dark:text-slate-200">{opt}</button>
-                ))}
-              </div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground">{language === 'es' ? 'Opciones Disponibles' : 'Available Options'}</h4>
+              {buildListAvailable.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleBuildListAdd(opt)}
+                  disabled={isAnswered}
+                  className="w-full text-left p-3.5 rounded-xl border-2 border-border bg-card hover:border-primary text-xs font-semibold text-foreground transition-all shadow-sm flex items-center justify-between gap-2"
+                >
+                  <span className="break-words leading-tight">{opt}</span>
+                  <span className="text-primary font-bold shrink-0">+</span>
+                </button>
+              ))}
             </div>
             <div className="space-y-3">
-              <h4 className="text-[10px] font-black uppercase text-slate-500 pl-1">Selected Order</h4>
-              <div className="bg-slate-900/40 p-3 rounded-xl border border-border min-h-[160px] space-y-2">
-                {buildListSelected.map((opt, i) => {
-                  const isCorrectPos = isAnswered && Array.isArray(answer) && answer[i] === opt;
-                  return (
-                    <button key={i} onClick={() => handleBuildListRemove(opt)} disabled={isAnswered} className={`w-full text-left p-3 rounded-lg border text-xs flex items-center justify-between transition-all ${isAnswered ? (isCorrectPos ? 'bg-success/20 border-success/40' : 'bg-danger/20 border-danger/40') : 'bg-primary/10 border-primary/30 hover:bg-primary/20'}`}>
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        <span className="shrink-0 w-5 h-5 flex items-center justify-center bg-primary/20 rounded-md text-[10px] font-black text-primary">{i+1}</span>
-                        <span className="font-bold break-words text-slate-800 dark:text-slate-100">{opt}</span>
-                      </div>
-                      {isAnswered && (isCorrectPos ? <CheckIcon className="w-3 h-3 ml-2 shrink-0" /> : <XIcon className="w-3 h-3 ml-2 shrink-0" />)}
-                    </button>
-                  );
-                })}
-              </div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-primary">{language === 'es' ? 'Orden Seleccionado' : 'Selected Order'}</h4>
+              {buildListSelected.length === 0 && (
+                <div className="p-6 border-2 border-dashed border-border rounded-xl text-center text-xs text-muted-foreground">
+                  {language === 'es' ? 'Haz clic en las opciones para agregarlas en el orden correcto' : 'Click options to add them in correct sequence'}
+                </div>
+              )}
+              {buildListSelected.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleBuildListRemove(opt)}
+                  disabled={isAnswered}
+                  className="w-full text-left p-3.5 rounded-xl border-2 border-primary bg-primary/10 text-xs font-bold text-foreground transition-all shadow-sm flex items-center justify-between gap-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-primary text-white text-[10px] flex items-center justify-center font-mono">{i + 1}</span>
+                    <span className="break-words leading-tight">{opt}</span>
+                  </div>
+                  <span className="text-red-500 font-bold shrink-0">×</span>
+                </button>
+              ))}
             </div>
           </div>
         );
       case 'Matching':
-        const keys = options.slice(0, Math.ceil(options.length / 2));
-        const targets = options.slice(Math.ceil(options.length / 2));
+        const rawPairs = Array.isArray(answer) ? answer : safeOptions;
+        const keys = rawPairs.map((p: string) => (p.includes(':') ? p.split(':')[0].trim() : p));
+        const targets = [...rawPairs.map((p: string) => (p.includes(':') ? p.split(':')[1].trim() : p))].sort();
         return (
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <div className="text-xs font-black uppercase tracking-wider text-muted-foreground mb-1">{language === 'es' ? 'Elementos' : 'Items'}</div>
               {keys.map((k, i) => {
                 const matchedVal = currentMatching[k];
                 return (
@@ -561,6 +597,7 @@ export const Quiz: React.FC<QuizProps> = ({
               })}
             </div>
             <div className="space-y-2">
+              <div className="text-xs font-black uppercase tracking-wider text-muted-foreground mb-1">{language === 'es' ? 'Objetivos / Roles' : 'Targets / Roles'}</div>
               {targets.map((t, i) => {
                 const matchedKey = Object.keys(currentMatching).find(k => currentMatching[k] === t);
                 return (
@@ -576,10 +613,10 @@ export const Quiz: React.FC<QuizProps> = ({
       default:
         return (
           <div className="grid grid-cols-1 gap-3">
-            {options.map((opt, i) => {
+            {safeOptions.map((opt, i) => {
               const isSelected = currentAnswer === opt;
               const normalizedCorrect = Array.isArray(answer) ? answer[0] : answer;
-              const isCorrect = normalizedCorrect === opt;
+              const isCorrect = String(normalizedCorrect).trim().toLowerCase() === String(opt).trim().toLowerCase();
               let styleClass = 'border-border bg-card hover:border-slate-500';
               if (isAnswered) {
                 if (isCorrect) styleClass = 'border-success bg-success/10 ring-2 ring-success/20';
@@ -840,25 +877,36 @@ export const Quiz: React.FC<QuizProps> = ({
                                 {!isAnswered ? (
                                     <button 
                                         onClick={handleSubmit} 
-                                        disabled={!(currentQuestion?.type === 'Matching' ? Object.keys(currentMatching).length > 0 : !!currentAnswer)} 
+                                        disabled={!hasSelectedAnswer} 
                                         className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-black py-4 px-6 rounded-2xl text-[14px] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg active:scale-95"
                                     >
-                                        Check Answer
+                                        {language === 'es' ? 'Comprobar Respuesta' : 'Check Answer'}
                                     </button>
                                 ) : (
                                     <button 
                                         onClick={handleNext} 
                                         className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-black py-4 px-6 rounded-2xl text-[14px] transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95"
                                     >
-                                        {currentQuestionIndex + 1 === totalInSet ? 'Finish and View Score' : 'Next Question'}
+                                        {currentQuestionIndex + 1 === totalInSet 
+                                            ? (language === 'es' ? 'Finalizar y Ver Puntuación' : 'Finish and View Score') 
+                                            : (language === 'es' ? 'Siguiente Pregunta' : 'Next Question')}
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                                     </button>
                                 )}
                             </div>
 
                             {/* Action Bar Overlay */}
-                            <div className="absolute top-4 right-4 flex gap-2">
-                                <button onClick={() => onToggleBookmark(currentQuestion)} className={`p-2 rounded-xl transition-all border ${isBookmarked(currentQuestion) ? 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20 shadow-lg shadow-yellow-500/10' : 'text-slate-500 bg-slate-100 dark:bg-slate-800/80 border-border hover:text-yellow-500'}`}>
+                            <div className="absolute top-4 right-4 flex items-center gap-2">
+                                {bookmarkToast && (
+                                    <span className="text-[11px] font-bold bg-slate-900 text-white dark:bg-card dark:text-foreground px-2.5 py-1 rounded-lg shadow border border-border animate-fade-in">
+                                        {bookmarkToast}
+                                    </span>
+                                )}
+                                <button 
+                                    onClick={() => handleBookmarkToggle(currentQuestion)} 
+                                    className={`p-2 rounded-xl transition-all border ${isBookmarked(currentQuestion) ? 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20 shadow-lg shadow-yellow-500/10' : 'text-slate-500 bg-slate-100 dark:bg-slate-800/80 border-border hover:text-yellow-500'}`}
+                                    title={isBookmarked(currentQuestion) ? (language === 'es' ? 'Quitar marcador' : 'Remove bookmark') : (language === 'es' ? 'Guardar en marcadores' : 'Bookmark question')}
+                                >
                                     <BookmarkIcon filled={isBookmarked(currentQuestion)} className="w-4 h-4" />
                                 </button>
                             </div>

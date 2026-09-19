@@ -462,46 +462,48 @@ function extractStringValue(rawValue: string): string {
 // Extract array of strings from a raw JSON value substring
 function extractArrayValue(rawValue: string): string[] {
     const trimmed = rawValue.trim();
-    if (!trimmed.startsWith('[')) {
-        const singleStr = extractStringValue(trimmed);
-        return singleStr ? [singleStr] : [];
-    }
     
+    // First try direct JSON.parse
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+            return parsed.map(item => String(item).trim()).filter(Boolean);
+        }
+    } catch {
+        // Continue to regex extraction
+    }
+
     const firstBracket = trimmed.indexOf('[');
     const lastBracket = trimmed.lastIndexOf(']');
-    if (firstBracket === -1 || lastBracket === -1 || lastBracket <= firstBracket) {
-        return [];
-    }
-    const inner = trimmed.substring(firstBracket + 1, lastBracket).trim();
-    if (!inner) return [];
+    const inner = (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket)
+        ? trimmed.substring(firstBracket + 1, lastBracket).trim()
+        : trimmed;
 
-    // Split by newline first
-    const lines = inner.split('\n');
-    const result: string[] = [];
-    for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
-        // If line ends with comma, remove it
-        if (line.endsWith(',')) {
-            line = line.slice(0, -1).trim();
-        }
-        const val = extractStringValue(line);
-        if (val) {
-            result.push(val);
-        }
-    }
-    
-    // If we didn't find anything (e.g. it was all on a single line), split by comma
-    if (result.length === 0) {
-        const parts = inner.split(',');
-        for (let part of parts) {
-            const val = extractStringValue(part.trim());
-            if (val) {
-                result.push(val);
-            }
+    // Use regex to extract all quoted strings safely
+    const quoteRegex = /"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g;
+    const matches: string[] = [];
+    let match;
+    while ((match = quoteRegex.exec(inner)) !== null) {
+        const content = match[1] !== undefined ? match[1] : match[2];
+        const unescaped = content
+            .replace(/\\"/g, '"')
+            .replace(/\\'/g, "'")
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\r')
+            .replace(/\\t/g, '\t')
+            .trim();
+        if (unescaped) {
+            matches.push(unescaped);
         }
     }
-    return result;
+
+    if (matches.length > 0) {
+        return matches;
+    }
+
+    // Fallback: split by newline or comma if no quotes detected
+    const parts = inner.split(/[\n,]+/).map(p => p.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+    return parts;
 }
 
 // Robust custom parser that parses fields from malformed JSON response
@@ -512,6 +514,25 @@ function sanitizeAndParseGeminiJson(rawJson: string): any {
     else if (s.startsWith("```")) s = s.substring(3);
     if (s.endsWith("```")) s = s.substring(0, s.length - 3);
     s = s.trim();
+
+    // Try standard JSON.parse first
+    try {
+        const parsed = JSON.parse(s);
+        if (parsed && typeof parsed === 'object') {
+            return {
+                type: parsed.type || 'MultipleChoice',
+                question: parsed.question || '',
+                context: parsed.context || undefined,
+                options: Array.isArray(parsed.options) ? parsed.options.map(String) : [],
+                answer: Array.isArray(parsed.answer) ? parsed.answer.map(String) : [String(parsed.answer || '')],
+                explanation: parsed.explanation || '',
+                category: parsed.category || 'Prepare the data',
+                difficulty: parsed.difficulty || 'Medium'
+            };
+        }
+    } catch {
+        // Fall back to key extraction
+    }
 
     // 2. Locate known keys and their value boundaries
     const knownKeys = ['type', 'question', 'context', 'options', 'answer', 'explanation', 'category', 'difficulty'];
@@ -545,7 +566,6 @@ function sanitizeAndParseGeminiJson(rawJson: string): any {
         if (val.endsWith(',')) {
             val = val.slice(0, -1).trim();
         }
-        // Remove trailing bracket/brace if it is at the end of the text block
         if (val.endsWith('}')) {
             val = val.slice(0, -1).trim();
         }
@@ -577,28 +597,35 @@ function sanitizeAndParseGeminiJson(rawJson: string): any {
 
 // 1. Generate Question Endpoint
 app.post("/api/gemini/generate-question", async (req, res) => {
-    const { difficulty, category = "All", language = "es" } = req.body;
-    const model = 'gemini-3.5-flash';
+    const { difficulty = 'Medium', category = "All", language = "es" } = req.body;
+    const allowedCategories = ['Prepare the data', 'Model the data', 'Visualize and analyze the data', 'Deploy and maintain assets'];
+    const chosenCategory = (category && category !== 'All' && allowedCategories.includes(category))
+        ? category
+        : allowedCategories[Math.floor(Math.random() * allowedCategories.length)];
+
     const randomType = ['MultipleChoice', 'MultiSelect', 'BuildList', 'Matching', 'CaseStudy'][Math.floor(Math.random() * 5)];
-
     const langName = language === 'es' ? 'Spanish' : 'English';
-    const prompt = `Generate a professional ${randomType} question for the Microsoft PL-300 Power BI exam.
-    Category: ${category}
-    Difficulty: ${difficulty === 'Adaptive' ? 'appropriate for level' : difficulty}
 
-    CRITICAL LANGUAGE REQUIREMENT:
-    You MUST write the question, the context, the options, the answers (where applicable), and the explanation entirely in ${langName}.
+    let typeGuideline = "";
+    if (randomType === 'MultipleChoice' || randomType === 'CaseStudy') {
+        typeGuideline = `The "options" field MUST be a JSON array of exactly 4 distinct strings formatted as ["A. ...", "B. ...", "C. ...", "D. ..."]. The "answer" field MUST be a JSON array containing the one correct option string, e.g. ["A. ..."].`;
+    } else if (randomType === 'MultiSelect') {
+        typeGuideline = `The "options" field MUST be a JSON array of 4 or 5 distinct strings formatted as ["A. ...", "B. ...", "C. ...", "D. ..."]. The "answer" field MUST be a JSON array containing 2 or 3 correct option strings.`;
+    } else if (randomType === 'BuildList') {
+        typeGuideline = `The "options" field MUST be a JSON array of 4 to 5 distinct process/configuration steps in mixed/shuffled order. The "answer" field MUST be a JSON array of those same steps in their exact correct chronological order.`;
+    } else if (randomType === 'Matching') {
+        typeGuideline = `The "options" field MUST be a JSON array of 6 distinct strings (3 concepts followed by 3 definitions/targets). The "answer" field MUST be a JSON array of matching pairs formatted as ["Concept1:Target1", "Concept2:Target2", "Concept3:Target3"].`;
+    }
 
-    CRITICAL INSTRUCTION FOR EXPLANATION:
-    Always begin the "explanation" field with a clear summary: "Correct Answer(s): [List correct choices]" in ${langName} (e.g., "Correct Answer(s): [Choices]").
-    Then, provide the technical reasoning in ${langName}.
+    const prompt = `Generate a realistic, professional ${randomType} question for the Microsoft PL-300 Power BI Data Analyst exam.
+    Category: ${chosenCategory}
+    Difficulty: ${difficulty === 'Adaptive' ? 'Medium' : difficulty}
 
-    CRITICAL JSON ESCAPING RULE:
-    Ensure all string values in the JSON (especially the "explanation" and "question") are properly escaped. 
-    Do NOT use raw/literal newline characters or unescaped double quotes inside the JSON string values. 
-    Use '\\n' for newlines and '\\"' for nested double quotes inside the JSON strings.
-
-    Return valid JSON.`;
+    CRITICAL REQUIREMENTS:
+    1. LANGUAGE: Write the entire question, options, answers, and explanation strictly in ${langName}.
+    2. OPTIONS: ${typeGuideline}
+    3. EXPLANATION: Begin with "${language === 'es' ? 'Respuesta(s) Correcta(s):' : 'Correct Answer(s):'} [List correct answers]" in ${langName}, followed by clear, thorough technical justification.
+    4. Return strictly valid JSON following the schema.`;
 
     try {
         const generated = await callWithRetry(async (activeModel) => {
@@ -609,7 +636,7 @@ app.post("/api/gemini/generate-question", async (req, res) => {
                     responseMimeType: 'application/json',
                     responseSchema: questionSchema,
                     temperature: 0.7,
-                    maxOutputTokens: 1000,
+                    maxOutputTokens: 1200,
                 },
             });
 
@@ -618,28 +645,29 @@ app.post("/api/gemini/generate-question", async (req, res) => {
             }
 
             const cleanedResponse = cleanJsonString(response.text);
+            let parsed: any;
             try {
-                return JSON.parse(cleanedResponse);
+                parsed = JSON.parse(cleanedResponse);
             } catch (jsonErr: any) {
-                console.warn("JSON.parse failed, attempting custom robust extraction. Error:", jsonErr.message);
-                return sanitizeAndParseGeminiJson(response.text);
+                console.warn("JSON.parse failed, using robust sanitizer:", jsonErr.message);
+                parsed = sanitizeAndParseGeminiJson(response.text);
             }
+
+            // Validate that the question is well-formed with options
+            if (!parsed || !parsed.question || !Array.isArray(parsed.options) || parsed.options.length < 2) {
+                throw new Error("Generated question has invalid or missing options");
+            }
+
+            return parsed;
         }, 'gemini-3.5-flash', 'gemini-3.1-flash-lite');
 
         res.json(generated);
     } catch (error: any) {
         logApiError("Error generating question in server, falling back to static questions", error);
         
-        // Choose the fallback question matching the requested category or choose randomly from the selected language subset
+        // Choose the fallback question matching the requested category
         const questionsOfLang = FALLBACK_QUESTIONS[language] || FALLBACK_QUESTIONS['en'];
-        
-        let selectedCategory = category;
-        if (category === 'All' || !questionsOfLang[category]) {
-            const keys = Object.keys(questionsOfLang);
-            selectedCategory = keys[Math.floor(Math.random() * keys.length)];
-        }
-        
-        const possibleFallbackList = questionsOfLang[selectedCategory];
+        const possibleFallbackList = questionsOfLang[chosenCategory] || questionsOfLang['Prepare the data'];
         const randomQuestion = possibleFallbackList[Math.floor(Math.random() * possibleFallbackList.length)];
         
         res.json({
@@ -801,6 +829,41 @@ app.post("/api/gemini/study-guide-stream", async (req, res) => {
         logApiError("Study guide stream error", error);
         res.status(500).write(`Error: ${error.message}`);
         res.end();
+    }
+});
+
+// 6. Tutor AI Chat Endpoint
+app.post("/api/gemini/chat", async (req, res) => {
+    const { messages, input, language } = req.body;
+    const lang = language === 'es' ? 'Spanish' : 'English';
+
+    try {
+        const history = Array.isArray(messages) ? messages.map((msg: any) => ({
+            role: msg.role === 'user' ? 'user' : 'model',
+            parts: [{ text: String(msg.text || '') }]
+        })) : [];
+
+        const systemInstruction = `You are Dexel (Baboulas AI Tutor), an expert and supportive PL-300 Power BI exam tutor from Baboulas Data Lab. 
+Help students master Power BI Data Analyst Associate (PL-300) concepts: DAX (CALCULATE, time intelligence, variables), Power Query / M language, Data Modeling (star schemas, relationships, RLS), and Visuals/Workspaces.
+Always answer in ${lang}. Be encouraging, clear, technically precise, and concise.`;
+
+        const response = await callWithRetry(async (activeModel) => {
+            return await getAiClient().models.generateContent({
+                model: activeModel,
+                contents: [
+                    ...history,
+                    { role: 'user', parts: [{ text: String(input || '') }] }
+                ],
+                config: {
+                    systemInstruction,
+                }
+            });
+        }, 'gemini-3.5-flash', 'gemini-3.1-flash-lite');
+
+        res.json({ text: response.text || "I am ready to help you with your PL-300 studies! Ask me anything." });
+    } catch (error: any) {
+        logApiError("Chat endpoint error", error);
+        res.status(500).json({ error: "Failed to generate chat response.", text: "Oops! I encountered an issue. Let me answer your question about Power BI right away. Please try rephrasing or asking again!" });
     }
 });
 

@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Ghost, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, MessageCircle } from 'lucide-react';
 
 export type MascotMood = 'neutral' | 'happy' | 'sad' | 'thinking' | 'warning' | 'cheering';
 
@@ -15,38 +14,22 @@ interface DexelMascotProps {
 
 export const DexelMascot: React.FC<DexelMascotProps> = ({ 
     className, 
-    showBubble = false, 
+    showBubble = true, 
     message,
-    mood = 'neutral',
+    mood = 'cheering',
     bubblePosition = 'top',
     onClick
 }) => {
     const [isHovered, setIsHovered] = useState(false);
-    const [mascotStyle, setMascotStyle] = useState<'vector' | '3d'>(() => {
-        if (typeof window !== 'undefined') {
-            return (localStorage.getItem('dexel_mascot_style') as 'vector' | '3d') || '3d';
-        }
-        return '3d';
-    });
 
     // Map moods to glowing background portal colors
     const moodColors: Record<MascotMood, string> = {
-        neutral: 'from-cyan-400/30 to-purple-500/30',
-        happy: 'from-emerald-400/40 to-lime-500/40',
-        sad: 'from-blue-500/30 to-slate-500/30',
-        thinking: 'from-amber-400/30 to-pink-500/30',
-        warning: 'from-red-500/40 to-orange-500/40',
-        cheering: 'from-pink-400/40 to-yellow-400/40',
-    };
-
-    // Animation variants for mascot container
-    const mascotVariants = {
-        neutral: { y: [0, -8, 0], scale: 1 },
-        happy: { y: [0, -18, 0], scale: [1, 1.08, 1], rotate: [0, 4, -4, 0] },
-        sad: { y: [0, 6, 0], scale: 0.96 },
-        thinking: { rotate: [0, -4, 4, 0], scale: 1.02 },
-        warning: { x: [-3, 3, -3, 3, 0], scale: 1.04 },
-        cheering: { y: [0, -25, 0], scale: [1, 1.15, 1], rotate: [0, 8, -8, 8, 0] },
+        neutral: 'from-cyan-400/20 to-purple-500/20',
+        happy: 'from-emerald-400/25 to-lime-500/25',
+        sad: 'from-blue-500/20 to-slate-500/20',
+        thinking: 'from-amber-400/20 to-pink-500/20',
+        warning: 'from-red-500/25 to-orange-500/25',
+        cheering: 'from-primary/20 to-secondary/20',
     };
 
     const handleClick = () => {
@@ -57,83 +40,44 @@ export const DexelMascot: React.FC<DexelMascotProps> = ({
         }
     };
 
-    // Style map for speech bubble placement around the mascot
-    const bubblePositions = {
-        top: 'absolute bottom-full mb-4 left-1/2 -translate-x-1/2 min-w-[220px] max-w-[280px]',
-        left: 'absolute right-full mr-4 top-1/2 -translate-y-1/2 min-w-[220px] max-w-[280px]',
-        right: 'absolute left-full ml-4 top-1/2 -translate-y-1/2 min-w-[220px] max-w-[280px]',
-        bottom: 'absolute top-full mt-4 left-1/2 -translate-x-1/2 min-w-[220px] max-w-[280px]',
-    };
-
-    // Style map for bubble arrow directions
-    const bubbleArrowPositions = {
-        top: 'absolute left-1/2 -bottom-[14px] -translate-x-1/2 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[14px] border-t-white dark:border-t-card',
-        left: 'absolute top-1/2 -right-[14px] -translate-y-1/2 w-0 h-0 border-t-[12px] border-t-transparent border-b-[12px] border-b-transparent border-l-[14px] border-l-white dark:border-l-card',
-        right: 'absolute top-1/2 -left-[14px] -translate-y-1/2 w-0 h-0 border-t-[12px] border-t-transparent border-b-[12px] border-b-transparent border-r-[14px] border-r-white dark:border-r-card',
-        bottom: 'absolute left-1/2 -top-[14px] -translate-x-1/2 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[14px] border-b-white dark:border-b-card',
-    };
-
     return (
         <div 
-            className={`relative flex flex-col items-center justify-center ${className}`}
+            className={`relative flex flex-col items-center justify-center cursor-pointer select-none group ${className || ''}`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             onClick={handleClick}
+            title="Haz clic para chatear con Dexel AI Tutor"
         >
-            <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                viewport={{ once: true }}
-                className="relative w-full h-full flex items-center justify-center"
-            >
-                <motion.div
-                    animate={mascotVariants[mood]}
-                    transition={{ 
-                        duration: mood === 'neutral' ? 3.5 : 0.6, 
-                        repeat: mood === 'neutral' ? Infinity : 0,
-                        ease: "easeInOut"
-                    }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="relative z-10 w-full h-full flex items-center justify-center cursor-pointer group"
-                >
-                    <div className="relative w-full h-full p-2">
-                        {/* Monster Portal Soft Ambient Glow behind the transparent character */}
-                        <div className={`absolute inset-0 bg-gradient-to-br ${moodColors[mood]} rounded-full blur-3xl opacity-40 transition-all duration-750`}></div>
-                        
+            {/* Ambient Glow (static, subtle) */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${moodColors[mood]} rounded-full blur-2xl opacity-40 transition-opacity duration-300 group-hover:opacity-70 scale-95`}></div>
 
+            {/* Static Mascot Container - completely static without dancing/bobbing */}
+            <div className="relative z-10 w-full h-full flex items-center justify-center transition-transform duration-200 group-hover:scale-[1.02]">
+                <div className="relative w-full h-full flex items-center justify-center p-1">
+                    <img 
+                        src="/Dexel.jpg"
+                        alt="Dexel - Baboulas AI Mascot"
+                        className="w-full h-full object-contain rounded-3xl drop-shadow-xl filter transition-all duration-300 group-hover:brightness-105"
+                        referrerPolicy="no-referrer"
+                    />
 
-                        {/* Transparent Cutout Container */}
-                        <div className="absolute inset-0 flex items-center justify-center overflow-visible">
-                            {/* Principal Mascot Handler - scaled larger, completely unclipped and floating on layout */}
-                            <div className="w-full h-full relative z-10 flex items-center justify-center p-2 overflow-visible">
-                                <MascotMedia 
-                                    mood={mood} 
-                                    mascotStyle={mascotStyle} 
-                                />
-                            </div>
-                        </div>
+                    {/* Floating Chat Badge (static, no bouncing) */}
+                    <div className="absolute -bottom-2 right-1 bg-primary text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow-lg border-2 border-white dark:border-card flex items-center gap-1.5 transition-transform duration-200 group-hover:scale-105">
+                        <MessageCircle className="w-3 h-3" />
+                        <span>Chat</span>
                     </div>
-                </motion.div>
-            </motion.div>
- 
-            {/* Speech bubble */}
-            <AnimatePresence>
-                {(showBubble || isHovered) && message && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.8, y: bubblePosition === 'bottom' ? -10 : 10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ type: "spring", damping: 15, stiffness: 300 }}
-                        className={`${bubblePositions[bubblePosition]} bg-gradient-to-br from-primary to-primary/90 p-4 rounded-[1.5rem] shadow-2xl border-4 border-white/95 z-[9999] cursor-pointer`}
-                    >
-                        <p className="text-xs md:text-sm font-black text-white text-center leading-snug uppercase tracking-wide drop-shadow-sm select-none">
-                            {message}
-                        </p>
-                        <div className={bubbleArrowPositions[bubblePosition]}></div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                </div>
+            </div>
+
+            {/* Interactive Speech Bubble */}
+            {showBubble && message && (
+                <div className="mt-3 bg-card border-2 border-primary/40 px-4 py-2.5 rounded-2xl shadow-xl z-20 max-w-[260px] text-center hover:border-primary transition-all">
+                    <p className="text-xs font-bold text-foreground leading-snug flex items-center justify-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                        <span>{message}</span>
+                    </p>
+                </div>
+            )}
         </div>
     );
 };

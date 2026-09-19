@@ -335,12 +335,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                     </div>
 
                                     {/* Dexel Mascot on the Right Side of the Hero */}
-                                    <div className="w-32 h-32 md:w-44 md:h-44 flex-shrink-0 relative z-10 select-none">
+                                    <div className="w-44 h-44 sm:w-52 sm:h-52 md:w-60 md:h-60 lg:w-68 lg:h-68 flex-shrink-0 relative z-10 select-none flex flex-col items-center justify-center">
                                         <DexelMascot 
                                             mood="cheering" 
                                             showBubble={true}
-                                            bubblePosition="left"
-                                            message={language === 'es' ? "¡Hola! ¿Listo para entrenar? ¡Haz clic para chatear!" : "Hey! Ready to study? Click to chat!"}
+                                            message={language === 'es' ? "¡Hola! ¿Listo para entrenar? ¡Haz clic aquí para chatear con Dexel!" : "Hey! Ready to study? Click here to chat with Dexel!"}
                                             className="w-full h-full"
                                         />
                                     </div>
@@ -591,11 +590,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             </motion.div>
                         ) : activeTab === 'analytics' ? (
                             <>
-                                {/* Performance Hub */}
+                                {/* Performance Hub Top Grid */}
                                 <motion.div 
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="lg:col-span-8 space-y-8"
+                                    className="lg:col-span-8 space-y-6"
                                 >
                                     <div className="bg-card p-4 md:p-8 rounded-3xl border border-border shadow-lg relative overflow-hidden">
                                         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
@@ -612,10 +611,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="bg-card p-8 rounded-3xl border border-border flex items-center justify-between group hover:shadow-xl transition-all">
-                                            <div className="flex items-center gap-4">
-                                                <div className="p-3 bg-primary/10 rounded-2xl group-hover:bg-primary transition-colors">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="bg-card p-6 md:p-8 rounded-3xl border border-border flex items-center justify-between group hover:shadow-xl transition-all relative overflow-hidden">
+                                            <div className="flex items-center gap-4 relative z-10">
+                                                <div className="p-3 bg-primary/10 rounded-2xl group-hover:bg-primary transition-colors shrink-0">
                                                     <PencilIcon className="w-6 h-6 text-primary group-hover:text-white transition-colors" />
                                                 </div>
                                                 <div className="flex flex-col">
@@ -625,9 +624,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                             </div>
                                             <div className="text-slate-200 dark:text-slate-800 font-black text-6xl select-none absolute right-4 opacity-10">P</div>
                                         </div>
-                                        <div className="bg-card p-8 rounded-3xl border border-border flex items-center justify-between group hover:shadow-xl transition-all">
-                                            <div className="flex items-center gap-4">
-                                                <div className="p-3 bg-success/10 rounded-2xl group-hover:bg-success transition-colors">
+                                        <div className="bg-card p-6 md:p-8 rounded-3xl border border-border flex items-center justify-between group hover:shadow-xl transition-all relative overflow-hidden">
+                                            <div className="flex items-center gap-4 relative z-10">
+                                                <div className="p-3 bg-success/10 rounded-2xl group-hover:bg-success transition-colors shrink-0">
                                                     <TargetIcon className="w-6 h-6 text-success group-hover:text-white transition-colors" />
                                                 </div>
                                                 <div className="flex flex-col">
@@ -638,8 +637,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                             <div className="text-slate-200 dark:text-slate-800 font-black text-6xl select-none absolute right-4 opacity-10">%</div>
                                         </div>
                                     </div>
-
-                                    <CurriculumHeatmap categoryStats={progressData.categoryStats} theme={theme} />
                                 </motion.div>
 
                                 <motion.div 
@@ -652,11 +649,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                     
                                     <CategoryStatsProgress categoryStats={progressData.categoryStats} />
                                     
-                                    <div className="flex justify-center pt-8">
-                                        <button onClick={onResetProgress} className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-danger transition-colors uppercase tracking-[0.2em]">
+                                    <div className="flex justify-center pt-4">
+                                        <button onClick={onResetProgress} className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-danger transition-colors uppercase tracking-[0.2em] py-2 px-4 rounded-xl hover:bg-danger/5">
                                             <TrashIcon className="w-4 h-4" /> {t('reset_data')}
                                         </button>
                                     </div>
+                                </motion.div>
+
+                                {/* Full Width Curriculum Heatmap */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="lg:col-span-12 w-full overflow-hidden"
+                                >
+                                    <CurriculumHeatmap categoryStats={progressData.categoryStats} theme={theme} />
                                 </motion.div>
                             </>
                         ) : (
